@@ -1,0 +1,10 @@
+# Mengabaikan folder virtual environment Python
+venv/
+__pycache__/
+
+# Mengabaikan database (biar orang lain mulai dari database kosong)
+kalender.db
+
+# Mengabaikan file build Flutter (karena ukurannya sangat raksasa)
+sicaka_mobile/build/
+sicaka_mobile/.dart_tool/
