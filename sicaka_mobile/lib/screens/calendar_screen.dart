@@ -151,6 +151,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // Dialog Konfirmasi Hapus
+  void _confirmDelete(EventModel event) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Kegiatan?'),
+        content: Text('Apakah Anda yakin ingin menghapus kegiatan "${event.title}" secara permanen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Batal
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              // Pastikan API Service Anda sudah memiliki metode deleteEvent(int id)
+              bool success = await _apiService.deleteEvent(event.id!);
+              if (success) {
+                _refreshData();
+                if (mounted) {
+                  Navigator.pop(context); // Tutup pop-up konfirmasi
+                  Navigator.pop(context); // Tutup pop-up detail
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Kegiatan dihapus!'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Ya, Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   // Dialog Detail Kegiatan
   void _showDetail(EventModel event) {
     Color statusColor = event.status == 'Terlaksana' ? Colors.lightBlue : Colors.orange;
@@ -175,9 +211,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         actions: [
-          // Gunakan warna primary untuk tombol Edit
-          TextButton(onPressed: () => _showEventForm(existingEvent: event), child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup', style: TextStyle(color: Colors.grey))),
+          // FITUR BARU: Tombol Hapus (Kiri)
+          TextButton(
+            onPressed: () => _confirmDelete(event), 
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+          const Spacer(), // Mendorong tombol Edit dan Tutup ke kanan
+          // Tombol Edit
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Tutup pop-up detail dulu
+              _showEventForm(existingEvent: event); // Buka form edit
+            }, 
+            child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))
+          ),
+          // Tombol Tutup
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('Tutup', style: TextStyle(color: Colors.grey))
+          ),
         ],
       ),
     );

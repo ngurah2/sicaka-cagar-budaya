@@ -80,3 +80,13 @@ def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db
         db.commit()
         return {"message": "Sukses Update"}
     return {"message": "Gagal"}
+
+# FITUR BARU: DELETE / HAPUS KEGIATAN
+@app.delete("/api/events/{event_id}")
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
+    if db_event:
+        db.delete(db_event)
+        db.commit()
+        return {"message": "Kegiatan berhasil dihapus"}
+    return {"message": "Kegiatan tidak ditemukan"}

@@ -35,4 +35,11 @@ class ApiService {
     );
     return response.statusCode == 200;
   }
+  // DELETE: Menghapus event
+  Future<bool> deleteEvent(int id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/$id'),
+    );
+    return response.statusCode == 200;
+  }
 }
