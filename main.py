@@ -1,19 +1,25 @@
-from fastapi import FastAPI, Depends
+import os
+import shutil
+from fastapi import FastAPI, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
 
 # ==========================================
-# 1. SETUP DATABASE
+# 1. SETUP DATABASE & FOLDER UPLOAD
 # ==========================================
 SQLALCHEMY_DATABASE_URL = "sqlite:///./kalender.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# Membuat folder 'uploads' jika belum ada
+os.makedirs("uploads", exist_ok=True)
+
 # ==========================================
-# 2. MEMBUAT TABEL DATABASE (DITAMBAH LOKASI)
+# 2. MEMBUAT TABEL DATABASE
 # ==========================================
 class EventDB(Base):
     __tablename__ = "events"
@@ -22,12 +28,15 @@ class EventDB(Base):
     description = Column(Text)
     month_year = Column(String)
     status = Column(String)
-    location = Column(String) # <--- TAMBAHAN LOKASI
-    image_url = Column(String)
+    location = Column(String) 
+    image_url = Column(String) # Kolom penyimpan nama/link gambar
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API SI-CAKA")
+
+# Mendaftarkan folder 'uploads' agar gambarnya bisa diakses oleh Flutter
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,14 +54,14 @@ def get_db():
         db.close()
 
 # ==========================================
-# 3. SCHEMA & ENDPOINTS (DITAMBAH FITUR EDIT)
+# 3. SCHEMA & ENDPOINTS 
 # ==========================================
 class EventCreate(BaseModel):
     title: str
     description: str
     month_year: str
     status: str
-    location: str # <--- TAMBAHAN LOKASI
+    location: str 
     image_url: str
 
 @app.post("/api/events")
@@ -67,7 +76,6 @@ def create_event(event: EventCreate, db: Session = Depends(get_db)):
 def get_all_events(db: Session = Depends(get_db)):
     return db.query(EventDB).all()
 
-# FITUR BARU: UPDATE / EDIT KEGIATAN
 @app.put("/api/events/{event_id}")
 def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db)):
     db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
@@ -77,11 +85,11 @@ def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db
         db_event.month_year = event.month_year
         db_event.status = event.status
         db_event.location = event.location
+        db_event.image_url = event.image_url # Memastikan gambar ikut ter-update
         db.commit()
         return {"message": "Sukses Update"}
     return {"message": "Gagal"}
 
-# FITUR BARU: DELETE / HAPUS KEGIATAN
 @app.delete("/api/events/{event_id}")
 def delete_event(event_id: int, db: Session = Depends(get_db)):
     db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
@@ -90,3 +98,14 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
         db.commit()
         return {"message": "Kegiatan berhasil dihapus"}
     return {"message": "Kegiatan tidak ditemukan"}
+
+# FITUR BARU: ENDPOINT UNTUK MENERIMA FILE GAMBAR
+@app.post("/api/upload")
+def upload_image(file: UploadFile = File(...)):
+    # Menyimpan file asli ke dalam folder uploads
+    file_location = f"uploads/{file.filename}"
+    with open(file_location, "wb+") as file_object:
+        shutil.copyfileobj(file.file, file_object)
+    
+    # Mengembalikan link gambar tersebut agar bisa disimpan ke database oleh Flutter
+    return {"image_url": f"http://127.0.0.1:8000/uploads/{file.filename}"}

@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/event_model.dart';
 import '../services/api_service.dart';
 
@@ -12,25 +14,36 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   final ApiService _apiService = ApiService();
   
-  // Controller untuk Form
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _monthController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   
-  // Controller untuk Pencarian
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   String _searchQuery = "";
   String _selectedStatus = 'Segera';
 
-  // Fungsi untuk memicu refresh data
+  // VARIABEL UNTUK GAMBAR
+  XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
+  String _existingImageUrl = "-";
+
   void _refreshData() {
     setState(() {});
   }
 
-  // Fungsi Simpan (Tambah atau Update)
   Future<void> _handleSave({int? eventId}) async {
+    String finalImageUrl = _existingImageUrl;
+
+    // JIKA ADA GAMBAR BARU YANG DIPILIH, UPLOAD DULU
+    if (_selectedImage != null) {
+      String? uploadedUrl = await _apiService.uploadImage(_selectedImage!);
+      if (uploadedUrl != null) {
+        finalImageUrl = uploadedUrl;
+      }
+    }
+
     final eventData = EventModel(
       id: eventId,
       title: _titleController.text,
@@ -38,7 +51,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       monthYear: _monthController.text,
       status: _selectedStatus,
       location: _locationController.text.isEmpty ? "-" : _locationController.text,
-      imageUrl: "-",
+      imageUrl: finalImageUrl, 
     );
 
     bool success;
@@ -50,21 +63,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (success) {
       _refreshData();
-      if (mounted) Navigator.of(context).pop(); // Tutup Form
-      if (eventId != null && mounted) Navigator.of(context).pop(); // Tutup Detail jika mode edit
+      
+      // PERBAIKAN: Menutup form tanpa membuat layar menjadi putih
+      if (mounted) {
+        Navigator.of(context).pop(); 
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(eventId == null ? 'Kegiatan berhasil ditambahkan!' : 'Kegiatan berhasil diperbarui!'),
-            backgroundColor: Colors.green,
+            content: Text(eventId == null ? 'Kegiatan ditambahkan!' : 'Kegiatan diperbarui!'), 
+            backgroundColor: Colors.green
           ),
         );
       }
     }
   }
 
-  // Dialog Form Tambah/Edit
   void _showEventForm({EventModel? existingEvent}) {
     if (existingEvent != null) {
       _titleController.text = existingEvent.title;
@@ -72,86 +87,125 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _monthController.text = existingEvent.monthYear;
       _locationController.text = existingEvent.location;
       _selectedStatus = existingEvent.status;
+      _existingImageUrl = existingEvent.imageUrl;
+      _selectedImage = null;
+      _selectedImageBytes = null;
     } else {
       _titleController.clear();
       _descController.clear();
       _monthController.clear();
       _locationController.clear();
       _selectedStatus = 'Segera';
+      _existingImageUrl = "-";
+      _selectedImage = null;
+      _selectedImageBytes = null;
     }
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(existingEvent == null ? 'Tambah Kegiatan Baru' : 'Edit Kegiatan'),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Nama Kegiatan')),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _descController,
-                    decoration: const InputDecoration(labelText: 'Deskripsi Singkat', alignLabelWithHint: true),
-                    keyboardType: TextInputType.multiline,
-                    minLines: 3, maxLines: 6,
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(existingEvent == null ? 'Tambah Kegiatan Baru' : 'Edit Kegiatan'),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // KOTAK UPLOAD GAMBAR
+                      GestureDetector(
+                        onTap: () async {
+                          final ImagePicker picker = ImagePicker();
+                          final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                          if (image != null) {
+                            var bytes = await image.readAsBytes();
+                            setStateDialog(() {
+                              _selectedImage = image;
+                              _selectedImageBytes = bytes;
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade400), // <- Border diperbaiki
+                            image: _selectedImageBytes != null
+                                ? DecorationImage(image: MemoryImage(_selectedImageBytes!), fit: BoxFit.cover)
+                                : (_existingImageUrl != "-" 
+                                    ? DecorationImage(image: NetworkImage(_existingImageUrl), fit: BoxFit.cover) 
+                                    : null),
+                          ),
+                          child: (_selectedImageBytes == null && _existingImageUrl == "-")
+                              ? const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_a_photo, color: Colors.grey, size: 40),
+                                    SizedBox(height: 8),
+                                    Text('Ketuk untuk pilih foto kegiatan', style: TextStyle(color: Colors.grey)),
+                                  ],
+                                )
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Nama Kegiatan')),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _descController,
+                        decoration: const InputDecoration(labelText: 'Deskripsi Singkat', alignLabelWithHint: true),
+                        keyboardType: TextInputType.multiline, minLines: 3, maxLines: 6,
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(controller: _locationController, decoration: const InputDecoration(labelText: 'Lokasi Kegiatan')),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _monthController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                            labelText: 'Pilih Tanggal Kegiatan',
+                            suffixIcon: Icon(Icons.calendar_month, color: Theme.of(context).primaryColor)),
+                        onTap: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030),
+                          );
+                          if (pickedDate != null) {
+                            List<String> namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                            List<String> namaHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+                            _monthController.text = "${namaHari[pickedDate.weekday - 1]}, ${pickedDate.day} ${namaBulan[pickedDate.month - 1]} ${pickedDate.year}";
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedStatus,
+                        items: ['Segera', 'Terlaksana'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (val) => _selectedStatus = val!,
+                        decoration: const InputDecoration(labelText: 'Status'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  TextField(controller: _locationController, decoration: const InputDecoration(labelText: 'Lokasi Kegiatan')),
-                  const SizedBox(height: 8),
-                  
-                  // PERBAIKAN 2: Warna Ikon Kalender pada Form mengikuti tema Biru
-                  TextField(
-                    controller: _monthController,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                        labelText: 'Pilih Tanggal Kegiatan',
-                        suffixIcon: Icon(Icons.calendar_month, color: Theme.of(context).primaryColor)), // <- DIUBAH
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (pickedDate != null) {
-                        List<String> namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                        List<String> namaHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-                        String formattedDate = "${namaHari[pickedDate.weekday - 1]}, ${pickedDate.day} ${namaBulan[pickedDate.month - 1]} ${pickedDate.year}";
-                        _monthController.text = formattedDate;
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedStatus,
-                    items: ['Segera', 'Terlaksana'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (val) => _selectedStatus = val!,
-                    decoration: const InputDecoration(labelText: 'Status'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
-            
-            // PERBAIKAN 3: Warna Tombol Simpan mengikuti tema Biru
-            ElevatedButton(
-              onPressed: () => _handleSave(eventId: existingEvent?.id),
-              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor), // <- DIUBAH
-              child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-            ),
-          ],
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+                ElevatedButton(
+                  onPressed: () => _handleSave(eventId: existingEvent?.id),
+                  style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
+                  child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
         );
       },
     );
   }
 
-  // Dialog Konfirmasi Hapus
   void _confirmDelete(EventModel event) {
     showDialog(
       context: context,
@@ -159,22 +213,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: const Text('Hapus Kegiatan?'),
         content: Text('Apakah Anda yakin ingin menghapus kegiatan "${event.title}" secara permanen?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Batal
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () async {
-              // Pastikan API Service Anda sudah memiliki metode deleteEvent(int id)
               bool success = await _apiService.deleteEvent(event.id!);
               if (success) {
                 _refreshData();
                 if (mounted) {
-                  Navigator.pop(context); // Tutup pop-up konfirmasi
-                  Navigator.pop(context); // Tutup pop-up detail
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Kegiatan dihapus!'), backgroundColor: Colors.red),
-                  );
+                  Navigator.pop(context); Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kegiatan dihapus!'), backgroundColor: Colors.red));
                 }
               }
             },
@@ -186,8 +233,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-
-  // Dialog Detail Kegiatan
   void _showDetail(EventModel event) {
     Color statusColor = event.status == 'Terlaksana' ? Colors.lightBlue : Colors.orange;
     showDialog(
@@ -200,6 +245,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Tampilkan Foto di Detail
+              if (event.imageUrl != "-")
+                Container(
+                  height: 200, width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    image: DecorationImage(image: NetworkImage(event.imageUrl), fit: BoxFit.cover)
+                  ),
+                ),
               _detailRow(Icons.calendar_today, event.monthYear),
               _detailRow(Icons.location_on, event.location),
               _detailRow(Icons.info, event.status, color: statusColor),
@@ -211,25 +266,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         actions: [
-          // FITUR BARU: Tombol Hapus (Kiri)
-          TextButton(
-            onPressed: () => _confirmDelete(event), 
-            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-          ),
-          const Spacer(), // Mendorong tombol Edit dan Tutup ke kanan
-          // Tombol Edit
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Tutup pop-up detail dulu
-              _showEventForm(existingEvent: event); // Buka form edit
-            }, 
-            child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))
-          ),
-          // Tombol Tutup
-          TextButton(
-            onPressed: () => Navigator.pop(context), 
-            child: const Text('Tutup', style: TextStyle(color: Colors.grey))
-          ),
+          TextButton(onPressed: () => _confirmDelete(event), child: const Text('Hapus', style: TextStyle(color: Colors.red))),
+          const Spacer(),
+          TextButton(onPressed: () { Navigator.pop(context); _showEventForm(existingEvent: event); }, child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup', style: TextStyle(color: Colors.grey))),
         ],
       ),
     );
@@ -257,12 +297,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              decoration: const InputDecoration(hintText: 'Cari kegiatan...', border: InputBorder.none),
-              onChanged: (val) => setState(() => _searchQuery = val),
-            )
+          ? TextField(controller: _searchController, autofocus: true, decoration: const InputDecoration(hintText: 'Cari kegiatan...', border: InputBorder.none), onChanged: (val) => setState(() => _searchQuery = val))
           : const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -273,10 +308,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search, color: const Color(0xFF1E3A8A)),
-            onPressed: () => setState(() {
-              _isSearching = !_isSearching;
-              if (!_isSearching) _searchQuery = "";
-            }),
+            onPressed: () => setState(() { _isSearching = !_isSearching; if (!_isSearching) _searchQuery = ""; }),
           ),
         ],
       ),
@@ -297,7 +329,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             events = events.where((e) => e.title.toLowerCase().contains(_searchQuery.toLowerCase()) || e.description.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
           }
 
-          // Grouping logic
           Map<String, List<EventModel>> grouped = {};
           for (var e in events) {
             List<String> parts = e.monthYear.split(' ');
@@ -320,32 +351,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildMonthSection(String month, List<EventModel> events) {
-    // Ambil warna utama tema
     final primaryColor = Theme.of(context).primaryColor;
-
     return Column(
       children: [
-        // PERBAIKAN 1: Warna Kotak Header Bulan mengikuti tema Biru
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.05), // <- Biru transparan sangat lembut
-              borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: primaryColor.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
-              Icon(Icons.arrow_back_ios, color: primaryColor, size: 18), // <- Ikon Biru
+              Icon(Icons.arrow_back_ios, color: primaryColor, size: 18),
               const SizedBox(width: 8),
-              Text(month, style: TextStyle(color: primaryColor, fontSize: 18, fontWeight: FontWeight.bold)), // <- Teks Biru
+              Text(month, style: TextStyle(color: primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
         const SizedBox(height: 12),
         ...events.map((e) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: GestureDetector(
-            onTap: () => _showDetail(e),
-            child: _buildEventCard(e),
-          ),
+          child: GestureDetector(onTap: () => _showDetail(e), child: _buildEventCard(e)),
         )).toList(),
       ],
     );
@@ -360,7 +383,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.image, color: Colors.grey)),
+            Container(
+              width: 80, height: 80, 
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300, 
+                borderRadius: BorderRadius.circular(8),
+                image: e.imageUrl != "-" 
+                    ? DecorationImage(image: NetworkImage(e.imageUrl), fit: BoxFit.cover)
+                    : null
+              ), 
+              child: e.imageUrl == "-" ? const Icon(Icons.image, color: Colors.grey) : null,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
