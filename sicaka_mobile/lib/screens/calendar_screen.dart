@@ -102,10 +102,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   const SizedBox(height: 8),
                   TextField(controller: _locationController, decoration: const InputDecoration(labelText: 'Lokasi Kegiatan')),
                   const SizedBox(height: 8),
+                  
+                  // PERBAIKAN 2: Warna Ikon Kalender pada Form mengikuti tema Biru
                   TextField(
                     controller: _monthController,
                     readOnly: true,
-                    decoration: const InputDecoration(labelText: 'Pilih Tanggal Kegiatan', suffixIcon: Icon(Icons.calendar_month, color: Colors.red)),
+                    decoration: InputDecoration(
+                        labelText: 'Pilih Tanggal Kegiatan',
+                        suffixIcon: Icon(Icons.calendar_month, color: Theme.of(context).primaryColor)), // <- DIUBAH
                     onTap: () async {
                       DateTime? pickedDate = await showDatePicker(
                         context: context,
@@ -133,10 +137,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+            
+            // PERBAIKAN 3: Warna Tombol Simpan mengikuti tema Biru
             ElevatedButton(
               onPressed: () => _handleSave(eventId: existingEvent?.id),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor), // <- DIUBAH
               child: const Text('Simpan', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -169,8 +175,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => _showEventForm(existingEvent: event), child: const Text('Edit')),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup', style: TextStyle(color: Colors.red))),
+          // Gunakan warna primary untuk tombol Edit
+          TextButton(onPressed: () => _showEventForm(existingEvent: event), child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup', style: TextStyle(color: Colors.grey))),
         ],
       ),
     );
@@ -213,7 +220,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.red),
+            icon: Icon(_isSearching ? Icons.close : Icons.search, color: const Color(0xFF1E3A8A)),
             onPressed: () => setState(() {
               _isSearching = !_isSearching;
               if (!_isSearching) _searchQuery = "";
@@ -223,13 +230,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showEventForm(),
-        backgroundColor: Colors.red,
+        backgroundColor: Theme.of(context).primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: FutureBuilder<List<EventModel>>(
         future: _apiService.fetchEvents(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.red));
+          if (snapshot.connectionState == ConnectionState.waiting) return Center(child: CircularProgressIndicator(color: Theme.of(context).primaryColor));
           if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
           if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text('Belum ada kegiatan.'));
 
@@ -261,16 +268,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildMonthSection(String month, List<EventModel> events) {
+    // Ambil warna utama tema
+    final primaryColor = Theme.of(context).primaryColor;
+
     return Column(
       children: [
+        // PERBAIKAN 1: Warna Kotak Header Bulan mengikuti tema Biru
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.05), // <- Biru transparan sangat lembut
+              borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
-              const Icon(Icons.arrow_back_ios, color: Colors.red, size: 18),
+              Icon(Icons.arrow_back_ios, color: primaryColor, size: 18), // <- Ikon Biru
               const SizedBox(width: 8),
-              Text(month, style: const TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(month, style: TextStyle(color: primaryColor, fontSize: 18, fontWeight: FontWeight.bold)), // <- Teks Biru
             ],
           ),
         ),
