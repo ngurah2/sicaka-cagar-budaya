@@ -15,7 +15,6 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Membuat folder 'uploads' jika belum ada
 os.makedirs("uploads", exist_ok=True)
 
 # ==========================================
@@ -26,17 +25,14 @@ class EventDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(Text)
-    # PENAMBAHAN INDEKS DI SINI ↓
     month_year = Column(String, index=True) 
     status = Column(String, index=True)     
     location = Column(String) 
-    image_url = Column(String) # Kolom penyimpan nama/link gambar
+    image_url = Column(String) 
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API SI-CAKA")
-
-# Mendaftarkan folder 'uploads' agar gambarnya bisa diakses oleh Flutter
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
@@ -55,6 +51,21 @@ def get_db():
         db.close()
 
 # ==========================================
+# FITUR 9: SISTEM CACHING INTERNAL (PENGGANTI REDIS)
+# ==========================================
+# Ini adalah "Papan Tulis" RAM kita
+APP_CACHE = {
+    "data_kegiatan": None,
+    "apakah_valid": False
+}
+
+def bersihkan_cache():
+    """Fungsi untuk menghapus papan tulis saat ada data baru/dihapus"""
+    APP_CACHE["apakah_valid"] = False
+    APP_CACHE["data_kegiatan"] = None
+    print("🧹 CACHE DIBERSIHKAN: Ada perubahan data!")
+
+# ==========================================
 # 3. SCHEMA & ENDPOINTS 
 # ==========================================
 class EventCreate(BaseModel):
@@ -71,11 +82,24 @@ def create_event(event: EventCreate, db: Session = Depends(get_db)):
     db.add(new_event)
     db.commit()
     db.refresh(new_event)
+    bersihkan_cache() # Hapus cache karena ada data baru
     return {"message": "Sukses!", "data": new_event}
 
 @app.get("/api/events")
 def get_all_events(db: Session = Depends(get_db)):
-    return db.query(EventDB).all()
+    # CEK CACHE: Jika data masih valid, ambil dari RAM (Super Cepat!)
+    if APP_CACHE["apakah_valid"] and APP_CACHE["data_kegiatan"] is not None:
+        print("⚡ NGEBUT: Mengambil data dari CACHE (RAM)!")
+        return APP_CACHE["data_kegiatan"]
+    
+    # Jika cache kosong/tidak valid, ambil dari Database (Hardisk)
+    print("💽 LAMBAT: Mengambil data dari DATABASE (Hardisk)!")
+    events = db.query(EventDB).all()
+    
+    # Simpan ke Cache untuk permintaan selanjutnya
+    APP_CACHE["data_kegiatan"] = events
+    APP_CACHE["apakah_valid"] = True
+    return events
 
 @app.put("/api/events/{event_id}")
 def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db)):
@@ -86,8 +110,9 @@ def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db
         db_event.month_year = event.month_year
         db_event.status = event.status
         db_event.location = event.location
-        db_event.image_url = event.image_url # Memastikan gambar ikut ter-update
+        db_event.image_url = event.image_url
         db.commit()
+        bersihkan_cache() # Hapus cache karena data diubah
         return {"message": "Sukses Update"}
     return {"message": "Gagal"}
 
@@ -97,16 +122,13 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
     if db_event:
         db.delete(db_event)
         db.commit()
+        bersihkan_cache() # Hapus cache karena data dihapus
         return {"message": "Kegiatan berhasil dihapus"}
     return {"message": "Kegiatan tidak ditemukan"}
 
-# FITUR BARU: ENDPOINT UNTUK MENERIMA FILE GAMBAR
 @app.post("/api/upload")
 def upload_image(file: UploadFile = File(...)):
-    # Menyimpan file asli ke dalam folder uploads
     file_location = f"uploads/{file.filename}"
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
-    
-    # Mengembalikan link gambar tersebut agar bisa disimpan ke database oleh Flutter
     return {"image_url": f"http://127.0.0.1:8000/uploads/{file.filename}"}
