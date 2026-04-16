@@ -1,14 +1,17 @@
 import os
 import shutil
-from fastapi import FastAPI, Depends, UploadFile, File
+import jwt # LIBRARY BARU UNTUK KEAMANAN
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials # LIBRARY BARU
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
 
 # ==========================================
-# 1. SETUP DATABASE & FOLDER UPLOAD
+# 1. SETUP DATABASE & FOLDER
 # ==========================================
 SQLALCHEMY_DATABASE_URL = "sqlite:///./kalender.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -17,9 +20,6 @@ Base = declarative_base()
 
 os.makedirs("uploads", exist_ok=True)
 
-# ==========================================
-# 2. MEMBUAT TABEL DATABASE
-# ==========================================
 class EventDB(Base):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True, index=True)
@@ -51,22 +51,56 @@ def get_db():
         db.close()
 
 # ==========================================
-# FITUR 9: SISTEM CACHING INTERNAL (PENGGANTI REDIS)
+# 2. FITUR CACHING INTERNAL 
 # ==========================================
-# Ini adalah "Papan Tulis" RAM kita
 APP_CACHE = {
     "data_kegiatan": None,
     "apakah_valid": False
 }
 
 def bersihkan_cache():
-    """Fungsi untuk menghapus papan tulis saat ada data baru/dihapus"""
     APP_CACHE["apakah_valid"] = False
     APP_CACHE["data_kegiatan"] = None
-    print("🧹 CACHE DIBERSIHKAN: Ada perubahan data!")
 
 # ==========================================
-# 3. SCHEMA & ENDPOINTS 
+# 3. SISTEM KEAMANAN & LOGIN (JWT)
+# ==========================================
+SECRET_KEY = "KunciRahasiaPuspemBadung123!" # Kunci sandi rahasia server
+ALGORITHM = "HS256"
+security = HTTPBearer() # Satpam penangkap Token
+
+# Username dan Password rahasia untuk Dinas
+ADMIN_USERNAME = "admin.cagarbudaya"
+ADMIN_PASSWORD = "password123"
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+# Fungsi untuk mengecek validitas Kartu/Token
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload["sub"]
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token sudah kedaluwarsa, silakan login ulang.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Token tidak valid!")
+
+# RUTE UNTUK LOGIN & MENDAPATKAN TOKEN
+@app.post("/api/login")
+def login(req: LoginRequest):
+    if req.username == ADMIN_USERNAME and req.password == ADMIN_PASSWORD:
+        # Buat token yang berlaku selama 1 hari (24 jam)
+        expiration = datetime.utcnow() + timedelta(days=1)
+        token = jwt.encode({"sub": req.username, "exp": expiration}, SECRET_KEY, algorithm=ALGORITHM)
+        return {"message": "Login Sukses", "token": token}
+    else:
+        raise HTTPException(status_code=401, detail="Username atau Password salah!")
+
+# ==========================================
+# 4. SCHEMA & ENDPOINTS KEGIATAN
 # ==========================================
 class EventCreate(BaseModel):
     title: str
@@ -76,33 +110,29 @@ class EventCreate(BaseModel):
     location: str 
     image_url: str
 
-@app.post("/api/events")
-def create_event(event: EventCreate, db: Session = Depends(get_db)):
-    new_event = EventDB(**event.dict())
-    db.add(new_event)
-    db.commit()
-    db.refresh(new_event)
-    bersihkan_cache() # Hapus cache karena ada data baru
-    return {"message": "Sukses!", "data": new_event}
-
+# GET dibiarkan terbuka (Public)
 @app.get("/api/events")
 def get_all_events(db: Session = Depends(get_db)):
-    # CEK CACHE: Jika data masih valid, ambil dari RAM (Super Cepat!)
     if APP_CACHE["apakah_valid"] and APP_CACHE["data_kegiatan"] is not None:
-        print("⚡ NGEBUT: Mengambil data dari CACHE (RAM)!")
         return APP_CACHE["data_kegiatan"]
-    
-    # Jika cache kosong/tidak valid, ambil dari Database (Hardisk)
-    print("💽 LAMBAT: Mengambil data dari DATABASE (Hardisk)!")
     events = db.query(EventDB).all()
-    
-    # Simpan ke Cache untuk permintaan selanjutnya
     APP_CACHE["data_kegiatan"] = events
     APP_CACHE["apakah_valid"] = True
     return events
 
+# POST dikunci (Hanya Admin yang punya Token)
+@app.post("/api/events")
+def create_event(event: EventCreate, db: Session = Depends(get_db), admin: str = Depends(verify_token)):
+    new_event = EventDB(**event.dict())
+    db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+    bersihkan_cache()
+    return {"message": "Sukses!", "data": new_event}
+
+# PUT dikunci
 @app.put("/api/events/{event_id}")
-def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db)):
+def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db), admin: str = Depends(verify_token)):
     db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
     if db_event:
         db_event.title = event.title
@@ -112,22 +142,24 @@ def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db
         db_event.location = event.location
         db_event.image_url = event.image_url
         db.commit()
-        bersihkan_cache() # Hapus cache karena data diubah
+        bersihkan_cache()
         return {"message": "Sukses Update"}
     return {"message": "Gagal"}
 
+# DELETE dikunci
 @app.delete("/api/events/{event_id}")
-def delete_event(event_id: int, db: Session = Depends(get_db)):
+def delete_event(event_id: int, db: Session = Depends(get_db), admin: str = Depends(verify_token)):
     db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
     if db_event:
         db.delete(db_event)
         db.commit()
-        bersihkan_cache() # Hapus cache karena data dihapus
+        bersihkan_cache()
         return {"message": "Kegiatan berhasil dihapus"}
     return {"message": "Kegiatan tidak ditemukan"}
 
+# UPLOAD dikunci
 @app.post("/api/upload")
-def upload_image(file: UploadFile = File(...)):
+def upload_image(file: UploadFile = File(...), admin: str = Depends(verify_token)):
     file_location = f"uploads/{file.filename}"
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
