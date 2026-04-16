@@ -26,8 +26,9 @@ class EventDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(Text)
-    month_year = Column(String)
-    status = Column(String)
+    # PENAMBAHAN INDEKS DI SINI ↓
+    month_year = Column(String, index=True) 
+    status = Column(String, index=True)     
     location = Column(String) 
     image_url = Column(String) # Kolom penyimpan nama/link gambar
 
