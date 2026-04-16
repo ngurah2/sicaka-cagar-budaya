@@ -29,10 +29,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       if (mounted) {
-        // PERBAIKAN: Jika sukses, arahkan ke MainScreen agar menu bawah muncul
+        // PERUBAHAN: Berikan status isAdmin = true ke MainScreen
         Navigator.pushReplacement(
           context, 
-          MaterialPageRoute(builder: (context) => const MainScreen())
+          MaterialPageRoute(builder: (context) => const MainScreen(isAdmin: true))
         );
       }
     } else {

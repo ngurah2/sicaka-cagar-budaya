@@ -5,7 +5,9 @@ import '../models/event_model.dart';
 import '../services/api_service.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  // PERUBAHAN: Menerima status Admin dari MainScreen
+  final bool isAdmin; 
+  const CalendarScreen({super.key, this.isAdmin = false});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -36,7 +38,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _handleSave({int? eventId}) async {
     String finalImageUrl = _existingImageUrl;
 
-    // JIKA ADA GAMBAR BARU YANG DIPILIH, UPLOAD DULU
     if (_selectedImage != null) {
       String? uploadedUrl = await _apiService.uploadImage(_selectedImage!);
       if (uploadedUrl != null) {
@@ -63,13 +64,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (success) {
       _refreshData();
-      
-      // PERBAIKAN: Menutup form tanpa membuat layar menjadi putih
       if (mounted) {
         Navigator.of(context).pop(); 
-      }
-      
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(eventId == null ? 'Kegiatan ditambahkan!' : 'Kegiatan diperbarui!'), 
@@ -114,7 +110,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // KOTAK UPLOAD GAMBAR
                       GestureDetector(
                         onTap: () async {
                           final ImagePicker picker = ImagePicker();
@@ -133,7 +128,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade400), // <- Border diperbaiki
+                            border: Border.all(color: Colors.grey.shade400),
                             image: _selectedImageBytes != null
                                 ? DecorationImage(image: MemoryImage(_selectedImageBytes!), fit: BoxFit.cover)
                                 : (_existingImageUrl != "-" 
@@ -245,7 +240,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tampilkan Foto di Detail
               if (event.imageUrl != "-")
                 Container(
                   height: 200, width: double.infinity,
@@ -266,9 +260,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => _confirmDelete(event), child: const Text('Hapus', style: TextStyle(color: Colors.red))),
+          // PERUBAHAN: Hanya Admin yang bisa melihat tombol Hapus
+          if (widget.isAdmin)
+            TextButton(onPressed: () => _confirmDelete(event), child: const Text('Hapus', style: TextStyle(color: Colors.red))),
+          
           const Spacer(),
-          TextButton(onPressed: () { Navigator.pop(context); _showEventForm(existingEvent: event); }, child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))),
+          
+          // PERUBAHAN: Hanya Admin yang bisa melihat tombol Edit
+          if (widget.isAdmin)
+            TextButton(onPressed: () { Navigator.pop(context); _showEventForm(existingEvent: event); }, child: Text('Edit', style: TextStyle(color: Theme.of(context).primaryColor))),
+          
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup', style: TextStyle(color: Colors.grey))),
         ],
       ),
@@ -312,11 +313,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEventForm(),
-        backgroundColor: Theme.of(context).primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      // PERUBAHAN: Tombol (+) hanya muncul jika isAdmin true
+      floatingActionButton: widget.isAdmin 
+        ? FloatingActionButton(
+            onPressed: () => _showEventForm(),
+            backgroundColor: Theme.of(context).primaryColor,
+            child: const Icon(Icons.add, color: Colors.white),
+          )
+        : null, 
       body: FutureBuilder<List<EventModel>>(
         future: _apiService.fetchEvents(),
         builder: (context, snapshot) {
