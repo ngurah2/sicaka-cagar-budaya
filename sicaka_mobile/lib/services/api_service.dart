@@ -5,10 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import '../models/event_model.dart';
 
 class ApiService {
-  // URL sudah disesuaikan dengan IP Lokal Laptop Anda untuk Demo Publik
-  static const String baseUrl = 'http://172.18.199.85:8000/api/events';
-  static const String uploadUrl = 'http://172.18.199.85:8000/api/upload';
-  static const String loginUrl = 'http://172.18.199.85:8000/api/login';
+  // URL Vercel yang sudah disesuaikan dengan struktur folder /api
+  static const String _serverUrl = 'https://sicaka-cagar-budaya.vercel.app/api';
+  
+  static const String baseUrl = '$_serverUrl/events';
+  static const String uploadUrl = '$_serverUrl/upload';
+  static const String loginUrl = '$_serverUrl/login';
 
   // VARIABEL PENYIMPAN KUNCI RAHASIA (TOKEN)
   static String? token;
@@ -23,13 +25,13 @@ class ApiService {
 
     if (response.statusCode == 200) {
       var data = json.decode(response.body);
-      token = data['token']; // Simpan kunci ke dalam memori aplikasi
+      token = data['token']; 
       return true;
     }
     return false;
   }
 
-  // 2. FUNGSI MENGAMBIL DATA (TIDAK PERLU KUNCI - PUBLIK)
+  // 2. FUNGSI MENGAMBIL DATA (PUBLIK)
   Future<List<EventModel>> fetchEvents() async {
     final response = await http.get(Uri.parse(baseUrl));
     if (response.statusCode == 200) {
@@ -46,7 +48,7 @@ class ApiService {
       Uri.parse(baseUrl),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer $token" // Sisipkan Kunci
+        "Authorization": "Bearer $token"
       },
       body: json.encode(event.toJson()),
     );
@@ -59,7 +61,7 @@ class ApiService {
       Uri.parse('$baseUrl/$id'),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer $token" // Sisipkan Kunci
+        "Authorization": "Bearer $token"
       },
       body: json.encode(event.toJson()),
     );
@@ -71,7 +73,7 @@ class ApiService {
     final response = await http.delete(
       Uri.parse('$baseUrl/$id'),
       headers: {
-        "Authorization": "Bearer $token" // Sisipkan Kunci
+        "Authorization": "Bearer $token"
       }
     );
     return response.statusCode == 200;
@@ -81,7 +83,6 @@ class ApiService {
   Future<String?> uploadImage(XFile imageFile) async {
     var request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
     
-    // Sisipkan Kunci di Header Multipart
     request.headers.addAll({
       "Authorization": "Bearer $token" 
     });

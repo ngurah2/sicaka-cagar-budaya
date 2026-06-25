@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "561865229479",
+    "project_id": "sicaka-badung",
+    "storage_bucket": "sicaka-badung.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561865229479:android:d4ba5cef1e6864b62dc782",
+        "android_client_info": {
+          "package_name": "com.example.sicaka_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDf91wz4mCqlBqH9scStwZfITShrllgd-w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

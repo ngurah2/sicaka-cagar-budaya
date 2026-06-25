@@ -8,3 +8,4 @@ kalender.db
 # Mengabaikan file build Flutter (karena ukurannya sangat raksasa)
 sicaka_mobile/build/
 sicaka_mobile/.dart_tool/
+firebase-key.json
