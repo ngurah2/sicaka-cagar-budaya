@@ -4,21 +4,22 @@ import jwt
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials 
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
 
 # ==========================================
-# 1. SETUP DATABASE & FOLDER
+# 1. SETUP DATABASE & FOLDER (DISESUAIKAN UNTUK VERCEL)
 # ==========================================
-SQLALCHEMY_DATABASE_URL = "sqlite:///./kalender.db"
+# Di Vercel, kita menggunakan /tmp untuk database sementara
+SQLALCHEMY_DATABASE_URL = "sqlite:////tmp/kalender.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-os.makedirs("uploads", exist_ok=True)
+# Pastikan folder upload ada di /tmp agar bisa diakses
+os.makedirs("/tmp/uploads", exist_ok=True)
 
 class EventDB(Base):
     __tablename__ = "events"
@@ -33,7 +34,6 @@ class EventDB(Base):
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API SI-CAKA")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,10 +53,7 @@ def get_db():
 # ==========================================
 # 2. FITUR CACHING INTERNAL 
 # ==========================================
-APP_CACHE = {
-    "data_kegiatan": None,
-    "apakah_valid": False
-}
+APP_CACHE = {"data_kegiatan": None, "apakah_valid": False}
 
 def bersihkan_cache():
     APP_CACHE["apakah_valid"] = False
@@ -68,7 +65,6 @@ def bersihkan_cache():
 SECRET_KEY = "KunciRahasiaPuspemBadung123!" 
 ALGORITHM = "HS256"
 security = HTTPBearer() 
-
 ADMIN_USERNAME = "admin.cagarbudaya"
 ADMIN_PASSWORD = "password123"
 
@@ -82,7 +78,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload["sub"]
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token sudah kedaluwarsa, silakan login ulang.")
+        raise HTTPException(status_code=401, detail="Token kedaluwarsa.")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token tidak valid!")
 
@@ -92,11 +88,10 @@ def login(req: LoginRequest):
         expiration = datetime.utcnow() + timedelta(days=1)
         token = jwt.encode({"sub": req.username, "exp": expiration}, SECRET_KEY, algorithm=ALGORITHM)
         return {"message": "Login Sukses", "token": token}
-    else:
-        raise HTTPException(status_code=401, detail="Username atau Password salah!")
+    raise HTTPException(status_code=401, detail="Username atau Password salah!")
 
 # ==========================================
-# 4. SCHEMA & ENDPOINTS KEGIATAN
+# 4. ENDPOINTS KEGIATAN
 # ==========================================
 class EventCreate(BaseModel):
     title: str
@@ -151,7 +146,8 @@ def delete_event(event_id: int, db: Session = Depends(get_db), admin: str = Depe
 
 @app.post("/api/upload")
 def upload_image(file: UploadFile = File(...), admin: str = Depends(verify_token)):
-    file_location = f"uploads/{file.filename}"
+    file_location = f"/tmp/uploads/{file.filename}"
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
-    return {"image_url": f"http://127.0.0.1:8000/uploads/{file.filename}"}
+    # Gunakan URL domain Vercel Anda di sini
+    return {"image_url": f"https://sicaka-cagar-budaya.vercel.app/api/uploads/{file.filename}"}
