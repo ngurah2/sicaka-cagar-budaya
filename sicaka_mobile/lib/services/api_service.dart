@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/event_model.dart';
 
 class ApiService {
-  // URL Vercel yang sudah disesuaikan dengan struktur folder /api
+  // Alamat Vercel yang sudah terintegrasi dengan folder /api
   static const String _serverUrl = 'https://sicaka-cagar-budaya.vercel.app/api';
   
   static const String baseUrl = '$_serverUrl/events';
@@ -17,16 +17,20 @@ class ApiService {
 
   // 1. FUNGSI LOGIN
   Future<bool> login(String username, String password) async {
-    final response = await http.post(
-      Uri.parse(loginUrl),
-      headers: {"Content-Type": "application/json"},
-      body: json.encode({"username": username, "password": password}),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse(loginUrl),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({"username": username, "password": password}),
+      );
 
-    if (response.statusCode == 200) {
-      var data = json.decode(response.body);
-      token = data['token']; 
-      return true;
+      if (response.statusCode == 200) {
+        var data = json.decode(response.body);
+        token = data['token']; 
+        return true;
+      }
+    } catch (e) {
+      print("Error Login: $e");
     }
     return false;
   }
@@ -38,7 +42,7 @@ class ApiService {
       List<dynamic> body = json.decode(response.body);
       return body.map((dynamic item) => EventModel.fromJson(item)).toList();
     } else {
-      throw Exception('Gagal mengambil data dari database');
+      throw Exception('Gagal mengambil data dari database (Status: ${response.statusCode})');
     }
   }
 
