@@ -1,11 +1,11 @@
 import os
 import shutil
-import jwt # LIBRARY BARU UNTUK KEAMANAN
+import jwt
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials # LIBRARY BARU
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials 
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
@@ -65,11 +65,10 @@ def bersihkan_cache():
 # ==========================================
 # 3. SISTEM KEAMANAN & LOGIN (JWT)
 # ==========================================
-SECRET_KEY = "KunciRahasiaPuspemBadung123!" # Kunci sandi rahasia server
+SECRET_KEY = "KunciRahasiaPuspemBadung123!" 
 ALGORITHM = "HS256"
-security = HTTPBearer() # Satpam penangkap Token
+security = HTTPBearer() 
 
-# Username dan Password rahasia untuk Dinas
 ADMIN_USERNAME = "admin.cagarbudaya"
 ADMIN_PASSWORD = "password123"
 
@@ -77,7 +76,6 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-# Fungsi untuk mengecek validitas Kartu/Token
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
@@ -88,11 +86,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token tidak valid!")
 
-# RUTE UNTUK LOGIN & MENDAPATKAN TOKEN
 @app.post("/api/login")
 def login(req: LoginRequest):
     if req.username == ADMIN_USERNAME and req.password == ADMIN_PASSWORD:
-        # Buat token yang berlaku selama 1 hari (24 jam)
         expiration = datetime.utcnow() + timedelta(days=1)
         token = jwt.encode({"sub": req.username, "exp": expiration}, SECRET_KEY, algorithm=ALGORITHM)
         return {"message": "Login Sukses", "token": token}
@@ -110,7 +106,6 @@ class EventCreate(BaseModel):
     location: str 
     image_url: str
 
-# GET dibiarkan terbuka (Public)
 @app.get("/api/events")
 def get_all_events(db: Session = Depends(get_db)):
     if APP_CACHE["apakah_valid"] and APP_CACHE["data_kegiatan"] is not None:
@@ -120,7 +115,6 @@ def get_all_events(db: Session = Depends(get_db)):
     APP_CACHE["apakah_valid"] = True
     return events
 
-# POST dikunci (Hanya Admin yang punya Token)
 @app.post("/api/events")
 def create_event(event: EventCreate, db: Session = Depends(get_db), admin: str = Depends(verify_token)):
     new_event = EventDB(**event.dict())
@@ -130,7 +124,6 @@ def create_event(event: EventCreate, db: Session = Depends(get_db), admin: str =
     bersihkan_cache()
     return {"message": "Sukses!", "data": new_event}
 
-# PUT dikunci
 @app.put("/api/events/{event_id}")
 def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db), admin: str = Depends(verify_token)):
     db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
@@ -146,7 +139,6 @@ def update_event(event_id: int, event: EventCreate, db: Session = Depends(get_db
         return {"message": "Sukses Update"}
     return {"message": "Gagal"}
 
-# DELETE dikunci
 @app.delete("/api/events/{event_id}")
 def delete_event(event_id: int, db: Session = Depends(get_db), admin: str = Depends(verify_token)):
     db_event = db.query(EventDB).filter(EventDB.id == event_id).first()
@@ -157,7 +149,6 @@ def delete_event(event_id: int, db: Session = Depends(get_db), admin: str = Depe
         return {"message": "Kegiatan berhasil dihapus"}
     return {"message": "Kegiatan tidak ditemukan"}
 
-# UPLOAD dikunci
 @app.post("/api/upload")
 def upload_image(file: UploadFile = File(...), admin: str = Depends(verify_token)):
     file_location = f"uploads/{file.filename}"

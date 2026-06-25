@@ -5,15 +5,15 @@ import 'package:image_picker/image_picker.dart';
 import '../models/event_model.dart';
 
 class ApiService {
-  // Ganti URL ini jika nanti di-hosting ke internet
-  static const String baseUrl = 'http://127.0.0.1:8000/api/events';
-  static const String uploadUrl = 'http://127.0.0.1:8000/api/upload';
-  static const String loginUrl = 'http://127.0.0.1:8000/api/login';
+  // URL sudah disesuaikan dengan IP Lokal Laptop Anda untuk Demo Publik
+  static const String baseUrl = 'http://172.18.199.85:8000/api/events';
+  static const String uploadUrl = 'http://172.18.199.85:8000/api/upload';
+  static const String loginUrl = 'http://172.18.199.85:8000/api/login';
 
   // VARIABEL PENYIMPAN KUNCI RAHASIA (TOKEN)
   static String? token;
 
-  // 1. FUNGSI LOGIN (BARU)
+  // 1. FUNGSI LOGIN
   Future<bool> login(String username, String password) async {
     final response = await http.post(
       Uri.parse(loginUrl),

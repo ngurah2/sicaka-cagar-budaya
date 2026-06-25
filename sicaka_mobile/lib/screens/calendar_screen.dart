@@ -333,6 +333,41 @@ class _CalendarScreenState extends State<CalendarScreen> {
             events = events.where((e) => e.title.toLowerCase().contains(_searchQuery.toLowerCase()) || e.description.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
           }
 
+          // === MULAI LOGIKA SORTIR TERBARU ===
+          
+          // 1. FUNGSI PINTAR UNTUK MEMBACA TANGGAL BAHASA INDONESIA
+          DateTime parseDate(String dateStr) {
+            Map<String, int> kamusBulan = {
+              'Januari': 1, 'Februari': 2, 'Maret': 3, 'April': 4,
+              'Mei': 5, 'Juni': 6, 'Juli': 7, 'Agustus': 8,
+              'September': 9, 'Oktober': 10, 'November': 11, 'Desember': 12
+            };
+            try {
+              List<String> parts = dateStr.replaceAll(',', '').split(' ');
+              if (parts.length >= 4) {
+                int day = int.parse(parts[1]);
+                int month = kamusBulan[parts[2]] ?? 1;
+                int year = int.parse(parts[3]);
+                return DateTime(year, month, day);
+              }
+            } catch (e) {}
+            return DateTime(2000); // Jika gagal baca, taruh di paling bawah
+          }
+
+          // 2. SORTIR KESELURUHAN DATA DARI TANGGAL TERBARU KE TERLAMA
+          events.sort((a, b) {
+            DateTime dateA = parseDate(a.monthYear);
+            DateTime dateB = parseDate(b.monthYear);
+            int dateComparison = dateB.compareTo(dateA); // Sortir Descending (Terbaru di atas)
+            
+            // Jika tanggalnya sama persis, prioritaskan data yang baru saja ditambahkan (ID terbesar)
+            if (dateComparison == 0) {
+              return (b.id ?? 0).compareTo(a.id ?? 0); 
+            }
+            return dateComparison;
+          });
+
+          // 3. KELOMPOKKAN PER BULAN (Otomatis urut karena data sudah disortir sebelumnya)
           Map<String, List<EventModel>> grouped = {};
           for (var e in events) {
             List<String> parts = e.monthYear.split(' ');
@@ -340,6 +375,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             if (!grouped.containsKey(monthYear)) grouped[monthYear] = [];
             grouped[monthYear]!.add(e);
           }
+          // === BATAS LOGIKA SORTIR ===
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
