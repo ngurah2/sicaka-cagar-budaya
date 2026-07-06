@@ -242,11 +242,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             children: [
               if (event.imageUrl != "-")
                 Container(
-                  height: 200, width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
+                  child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    image: DecorationImage(image: NetworkImage(event.imageUrl), fit: BoxFit.cover)
+                    child: Image.network(
+                      event.imageUrl,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Jika gambar gagal dimuat, widget ini akan hilang (tidak tampil kotak abu-abu besar)
+                        return const SizedBox.shrink();
+                      },
+                    ),
                   ),
                 ),
               _detailRow(Icons.calendar_today, event.monthYear),
@@ -428,11 +436,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade300, 
                 borderRadius: BorderRadius.circular(8),
-                image: e.imageUrl != "-" 
-                    ? DecorationImage(image: NetworkImage(e.imageUrl), fit: BoxFit.cover)
-                    : null
               ), 
-              child: e.imageUrl == "-" ? const Icon(Icons.image, color: Colors.grey) : null,
+              child: e.imageUrl == "-" 
+                  ? const Icon(Icons.image, color: Colors.grey) 
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        e.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Jika gagal muat di list thumbnail, tampilkan icon default agar tidak abu-abu
+                          return const Icon(Icons.image, color: Colors.grey);
+                        },
+                      ),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(

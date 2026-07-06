@@ -44,49 +44,123 @@ Aplikasi ini terbagi menjadi 2 bagian utama yang saling bekerja sama:
    `.\venv\Scripts\activate` *(Jika berhasil, akan muncul tulisan `(venv)` warna hijau di sebelah kiri tempat Anda mengetik).*
 7. **Download Alat-alat yang Dibutuhkan:** Ketik dan Enter:
    `pip install -r requirements.txt`
-8. Tunggu proses *download* sampai selesai 100%. Persiapan pertama kali sudah selesai! 🎉
+8. **Siapkan Kunci Rahasia:** Aplikasi membutuhkan kunci rahasia agar aman. Buat file baru bernama `.env` (wajib isi titik di depannya) di dalam folder utama. Buka file tersebut, lalu ketik teks berikut dan simpan (Ctrl+S):
+   ```env
+   SECRET_KEY=KunciRahasiaPuspemBadung123!
+   ADMIN_USERNAME=admin.cagarbudaya
+   ADMIN_PASSWORD=password123
 
----
+Tunggu proses download sampai selesai 100%. Persiapan pertama kali sudah selesai! 🎉
 
-## ⚡ PANDUAN SEHARI-HARI (CARA MENYALAKAN APLIKASI)
+⚡ PANDUAN SEHARI-HARI (CARA MENYALAKAN APLIKASI DI LAPTOP)
+SANGAT PENTING: Ikuti langkah di bawah ini secara berurutan setiap kali Anda baru menghidupkan laptop dan ingin membuka aplikasi. Anda harus membuka 2 Terminal (Terminal 1 untuk Mesin, Terminal 2 untuk Layar).
 
-**SANGAT PENTING:** Ikuti langkah di bawah ini **secara berurutan** setiap kali Anda baru menghidupkan laptop dan ingin membuka aplikasi. Anda harus membuka 2 Terminal (Terminal 1 untuk Mesin, Terminal 2 untuk Layar).
+🖥️ TERMINAL 1: Menyalakan Mesin Data (Backend)
+Buka VS Code dan buka folder proyek.
 
-### 🖥️ TERMINAL 1: Menyalakan Mesin Data (Backend)
-1. Buka **VS Code** dan buka folder proyek.
-2. Buka Terminal Baru (`Terminal` > `New Terminal`).
-3. Masuk ke folder mesin: Ketik `cd backend` lalu Enter.
-4. Nyalakan ruang khusus: Ketik `.\venv\Scripts\activate` lalu Enter.
-5. **Nyalakan Mesinnya:** Ketik perintah sakti ini lalu Enter:
-   `uvicorn main:app --reload`
-6. Tunggu sampai muncul tulisan `Application startup complete`. 
-7. **JANGAN TUTUP TERMINAL INI!** Biarkan mesin menyala di latar belakang. Lanjut ke Terminal 2.
+Buka Terminal Baru (Terminal > New Terminal).
 
-### 📱 TERMINAL 2: Menyalakan Layar Aplikasi (Frontend Flutter)
-1. Buat layar terminal baru dengan menekan tombol tanda tambah **(+)** di bagian kanan atas kotak Terminal VS Code Anda. (Sekarang Anda punya 2 terminal yang bisa di-klik bergantian).
-2. Di terminal baru ini, masuk ke folder layar aplikasi:
-   Ketik `cd sicaka_mobile` lalu Enter.
-3. **Nyalakan Aplikasinya (Contoh di Google Chrome):** Ketik perintah ini lalu Enter:
-   `flutter run -d chrome`
-4. Tunggu beberapa saat, dan Google Chrome akan otomatis terbuka menampilkan aplikasi SI-CAKA!
+Masuk ke folder mesin: Ketik cd backend lalu Enter.
 
----
+Nyalakan ruang khusus: Ketik .\venv\Scripts\activate lalu Enter.
 
-## 🔑 KUNCI RAHASIA LOGIN ADMIN
+Nyalakan Mesinnya: Ketik perintah sakti ini lalu Enter:
 
+Bash
+uvicorn main:app --reload
+Tunggu sampai muncul tulisan Application startup complete.
+
+JANGAN TUTUP TERMINAL INI! Biarkan mesin menyala di latar belakang. Lanjut ke Terminal 2.
+
+📱 TERMINAL 2: Menyalakan Layar Aplikasi (Frontend Flutter)
+Buat layar terminal baru dengan menekan tombol tanda tambah (+) di bagian kanan atas kotak Terminal VS Code Anda. (Sekarang Anda punya 2 terminal yang bisa di-klik bergantian).
+
+Di terminal baru ini, masuk ke folder layar aplikasi:
+Ketik cd sicaka_mobile lalu Enter.
+
+Nyalakan Aplikasinya (Contoh di Google Chrome): Ketik perintah ini lalu Enter:
+
+Bash
+flutter run -d chrome
+Tunggu beberapa saat, dan Google Chrome akan otomatis terbuka menampilkan aplikasi SI-CAKA!
+
+🔑 KUNCI RAHASIA LOGIN ADMIN
 Jika Anda ingin masuk sebagai Admin/Kepala Bidang untuk menambah jadwal, gunakan kunci ini di halaman Login:
 
-- **Username:** `admin.cagarbudaya`
-- **Password:** `password123`
+Username: admin.cagarbudaya
 
----
+Password: password123
 
-## ❓ SOLUSI JIKA TERJADI ERROR (Troubleshooting)
+🌍 PANDUAN DEPLOYMENT (RILIS KE SERVER & DOMAIN KOMINFO)
+Langkah ini dilakukan jika aplikasi SI-CAKA sudah siap dipublikasikan ke internet, sehingga semua pegawai bisa mengaksesnya melalui domain resmi pemerintah (contoh: sicaka.badungkab.go.id).
 
-* **Aplikasi macet/loading terus saat menambah jadwal?**
-  *Cek Terminal 1 Anda. Mesin (Backend) kemungkinan mati atau terhenti. Tekan tombol `Enter` beberapa kali di Terminal 1 untuk membangunkannya, atau matikan dengan `Ctrl+C` lalu ketik ulang `uvicorn main:app --reload`.*
-* **Error "File Not Found" saat mencoba menjalankan Terminal?**
-  *Pastikan Anda sudah mengetik `cd` (Change Directory) ke folder yang benar. Gunakan perintah `ls` atau `dir` untuk melihat isi folder saat ini.*
+Tahap 1: Membungkus Layar Aplikasi (Build Frontend)
+Buka Terminal di VS Code dan pastikan Anda berada di dalam folder sicaka_mobile.
 
----
-*Developed with ☕️ in Mengwi, Bali.*
+Ketik perintah ini untuk mengubah kode Flutter menjadi file website yang ringan:
+
+Bash
+flutter build web --release
+Tunggu hingga proses selesai. Jika berhasil, sistem akan membuat folder baru di sicaka_mobile/build/web.
+
+Catatan Penting: Seluruh file dan folder yang ada di dalam folder web inilah yang nantinya akan kita unggah ke server Kominfo.
+
+Tahap 2: Mempersiapkan Server Kominfo (Cpanel / VPS)
+Hubungi tim IT Dinas Kominfo Badung untuk meminta akses ke Server (cPanel atau VPS) dan sebuah Subdomain.
+
+Mengunggah Layar Aplikasi:
+
+Masuk ke pengelola file (File Manager) di cPanel Kominfo.
+
+Buka folder public_html (atau folder direktori subdomain yang diberikan).
+
+Unggah (Upload) seluruh isi dari folder build/web (dari Tahap 1) ke dalam folder tersebut.
+
+Mengunggah Mesin Data (Backend):
+
+Buat folder baru di luar public_html untuk keamanan (misalnya beri nama sicaka_backend).
+
+Unggah semua file Python Anda (main.py), file requirements.txt, dan file rahasia .env ke dalam folder baru ini.
+
+Tahap 3: Menyalakan Mesin Data di Server (Hidup 24 Jam)
+Masuk ke terminal server Kominfo (melalui fitur Terminal di cPanel atau menggunakan SSH).
+
+Pindah ke folder mesin data: cd sicaka_backend (sesuaikan dengan nama folder yang Anda buat).
+
+Instal perlengkapan mesin di server:
+
+Bash
+pip install -r requirements.txt
+Nyalakan mesin agar tidak mati meskipun Anda menutup laptop/terminal, menggunakan perintah:
+
+Bash
+nohup uvicorn main:app --host 0.0.0.0 --port 8000 &
+Tahap 4: Pengaturan Akhir dengan Tim IT Kominfo
+Laporkan kepada tim IT Kominfo bahwa aplikasi sudah berjalan di port 8000.
+
+Minta bantuan tim IT untuk mengatur Reverse Proxy agar subdomain (misal: sicaka.badungkab.go.id) mengarah secara otomatis ke mesin data Anda di port 8000.
+
+Selesai! SI-CAKA kini sudah resmi online dan siap digunakan oleh seluruh staf.
+
+❓ SOLUSI JIKA TERJADI ERROR (Troubleshooting Lengkap)
+Aplikasi macet atau berputar (loading) terus saat menambah jadwal?
+Penyebab: Mesin backend (Terminal 1) kemungkinan mati atau terhenti ("sleep").
+Solusi: Buka VS Code, lihat Terminal 1. Tekan tombol Enter beberapa kali untuk membangunkannya. Jika masih diam, matikan paksa dengan tombol Ctrl + C, lalu ketik ulang perintah uvicorn main:app --reload dan tekan Enter.
+
+Error "File Not Found" atau "No such file or directory" di Terminal?
+Penyebab: Anda membuka terminal di folder yang salah.
+Solusi: Pastikan Anda menggunakan perintah cd untuk masuk ke folder yang benar terlebih dahulu. Ketik dir (di Windows) atau ls (di Mac) untuk melihat apakah Anda sudah berada di folder yang tepat.
+
+Layar Abu-abu atau Blank Screen saat aplikasi dibuka di Google Chrome?
+Penyebab: Ada kesalahan saat Flutter membaca memori cache komputer Anda.
+Solusi: Matikan Terminal 2 (tekan Ctrl + C). Ketik flutter clean lalu Enter. Tunggu sampai selesai, lalu ketik ulang flutter run -d chrome.
+
+Error "Port is already in use" di Terminal 1?
+Penyebab: Mesin data sebelumnya belum dimatikan dengan sempurna sehingga menumpuk.
+Solusi: Tutup seluruh aplikasi VS Code, buka ulang, dan nyalakan dari awal.
+
+Aplikasi jalan di laptop, tapi Error (CORS) saat sudah di-Upload ke Kominfo?
+Penyebab: Aplikasi layar belum tahu alamat mesin data yang baru di server.
+Solusi: Buka file api_service.dart. Ubah alamat tulisan http://127.0.0.1:8000 menjadi nama domain resmi dari Kominfo. Setelah diubah, jalankan ulang langkah flutter build web --release dan unggah ulang file terbarunya ke cPanel.
+
+Developed with ☕️ in Mengwi, Bali.

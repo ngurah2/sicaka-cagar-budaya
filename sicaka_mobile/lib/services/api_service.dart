@@ -5,14 +5,13 @@ import 'package:image_picker/image_picker.dart';
 import '../models/event_model.dart';
 
 class ApiService {
-  // Alamat Vercel yang sudah terintegrasi dengan folder /api
+  // Alamat Vercel
   static const String _serverUrl = 'https://sicaka-cagar-budaya.vercel.app/api';
   
   static const String baseUrl = '$_serverUrl/events';
   static const String uploadUrl = '$_serverUrl/upload';
   static const String loginUrl = '$_serverUrl/login';
 
-  // VARIABEL PENYIMPAN KUNCI RAHASIA (TOKEN)
   static String? token;
 
   // 1. FUNGSI LOGIN
@@ -35,75 +34,98 @@ class ApiService {
     return false;
   }
 
-  // 2. FUNGSI MENGAMBIL DATA (PUBLIK)
+  // 2. FUNGSI MENGAMBIL DATA (Diperkuat agar tidak crash)
   Future<List<EventModel>> fetchEvents() async {
-    final response = await http.get(Uri.parse(baseUrl));
-    if (response.statusCode == 200) {
-      List<dynamic> body = json.decode(response.body);
-      return body.map((dynamic item) => EventModel.fromJson(item)).toList();
-    } else {
-      throw Exception('Gagal mengambil data dari database (Status: ${response.statusCode})');
+    try {
+      final response = await http.get(Uri.parse(baseUrl));
+      
+      // Jika status bukan 200, kembalikan list kosong daripada mencoba decode data rusak
+      if (response.statusCode == 200) {
+        final dynamic decoded = json.decode(response.body);
+        if (decoded is List) {
+          return decoded.map((item) => EventModel.fromJson(item)).toList();
+        }
+      }
+      return []; 
+    } catch (e) {
+      print("Error Fetching: $e");
+      return []; 
     }
   }
 
-  // 3. FUNGSI TAMBAH DATA (WAJIB KUNCI)
+  // 3. FUNGSI TAMBAH DATA
   Future<bool> addEvent(EventModel event) async {
-    final response = await http.post(
-      Uri.parse(baseUrl),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token"
-      },
-      body: json.encode(event.toJson()),
-    );
-    return response.statusCode == 200;
+    try {
+      final response = await http.post(
+        Uri.parse(baseUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: json.encode(event.toJson()),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
   }
 
-  // 4. FUNGSI UBAH DATA (WAJIB KUNCI)
+  // 4. FUNGSI UBAH DATA
   Future<bool> updateEvent(int id, EventModel event) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/$id'),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token"
-      },
-      body: json.encode(event.toJson()),
-    );
-    return response.statusCode == 200;
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/$id'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: json.encode(event.toJson()),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
   }
 
-  // 5. FUNGSI HAPUS DATA (WAJIB KUNCI)
+  // 5. FUNGSI HAPUS DATA
   Future<bool> deleteEvent(int id) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/$id'),
-      headers: {
-        "Authorization": "Bearer $token"
-      }
-    );
-    return response.statusCode == 200;
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/$id'),
+        headers: {
+          "Authorization": "Bearer $token"
+        }
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
   }
 
-  // 6. FUNGSI UPLOAD GAMBAR (WAJIB KUNCI)
+  // 6. FUNGSI UPLOAD GAMBAR
   Future<String?> uploadImage(XFile imageFile) async {
-    var request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
-    
-    request.headers.addAll({
-      "Authorization": "Bearer $token" 
-    });
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
+      
+      request.headers.addAll({
+        "Authorization": "Bearer $token" 
+      });
 
-    Uint8List byteData = await imageFile.readAsBytes();
-    List<int> bytes = byteData.cast();
+      Uint8List byteData = await imageFile.readAsBytes();
+      
+      request.files.add(http.MultipartFile.fromBytes(
+        'file', byteData, filename: imageFile.name,
+      ));
 
-    request.files.add(http.MultipartFile.fromBytes(
-      'file', bytes, filename: imageFile.name,
-    ));
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
 
-    var response = await request.send();
-
-    if (response.statusCode == 200) {
-      var responseData = await response.stream.bytesToString();
-      var jsonResponse = json.decode(responseData);
-      return jsonResponse['image_url']; 
+      if (response.statusCode == 200) {
+        var jsonResponse = json.decode(response.body);
+        return jsonResponse['image_url']; 
+      }
+    } catch (e) {
+      print("Error Upload: $e");
     }
     return null;
   }

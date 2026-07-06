@@ -20,12 +20,14 @@ class EventModel {
   factory EventModel.fromJson(Map<String, dynamic> json) {
     return EventModel(
       id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      monthYear: json['month_year'],
-      status: json['status'],
-      location: json['location'] ?? '-',
-      imageUrl: json['image_url'] ?? '-',
+      // Penambahan .toString() memastikan data selalu terbaca sebagai String 
+      // dan menghindari Type Error saat data dari Vercel tidak sesuai tipe
+      title: (json['title'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      monthYear: (json['month_year'] ?? '').toString(),
+      status: (json['status'] ?? '').toString(),
+      location: (json['location'] ?? '-').toString(),
+      imageUrl: (json['image_url'] ?? '-').toString(),
     );
   }
 

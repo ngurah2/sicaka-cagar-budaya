@@ -1,7 +1,30 @@
-# Miscellaneous
+# --- 1. RAHASIA & LINGKUNGAN (Paling Penting!) ---
+.env
+venv/
+env/
+__pycache__/
+*.pyc
+.vercel/
+
+# --- 2. DATABASE & FILE UPLOAD ---
+*.db
+*.sqlite3
+uploads/
+
+# --- 3. FLUTTER & DART ---
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# --- 4. ASSET & LOG ---
 *.class
 *.log
-*.pyc
 *.swp
 .DS_Store
 .atom/
@@ -11,35 +34,17 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+app.*.symbols
+app.*.map.json
 
-# IntelliJ related
+# --- 5. IDE & EDITOR ---
+.vscode/
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
+# --- 6. ANDROID/MOBILE ARTIFACTS ---
 /android/app/debug
 /android/app/profile
 /android/app/release

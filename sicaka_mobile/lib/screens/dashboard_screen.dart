@@ -38,12 +38,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           int totalTerlaksana = events.where((e) => e.status == 'Terlaksana').length;
           int totalSegera = events.where((e) => e.status == 'Segera').length;
 
-          Map<String, int> monthlyCount = {};
+          // === LOGIKA URUTAN BULAN DIPERBAIKI ===
+          // 1. Siapkan cetakan 12 bulan berurutan
+          List<String> allMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+          Map<String, int> monthlyCount = { for (var m in allMonths) m: 0 };
+
+          // 2. Isi data sesuai bulan yang ada di database
           for (var e in events) {
             List<String> parts = e.monthYear.split(' ');
             String monthName = parts.length >= 2 ? parts[parts.length - 2] : "Unknown"; 
-            monthlyCount[monthName] = (monthlyCount[monthName] ?? 0) + 1;
+            if (monthlyCount.containsKey(monthName)) {
+              monthlyCount[monthName] = monthlyCount[monthName]! + 1;
+            }
           }
+          // ======================================
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -127,10 +135,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             getTitlesWidget: (double value, TitleMeta meta) {
-                              if (value.toInt() >= 0 && value.toInt() < monthlyCount.keys.length) {
+                              if (value.toInt() >= 0 && value.toInt() < allMonths.length) {
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(monthlyCount.keys.elementAt(value.toInt()).substring(0, 3), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                  // Mengambil 3 huruf pertama dari nama bulan (Jan, Feb, Mar, dll)
+                                  child: Text(allMonths[value.toInt()].substring(0, 3), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                                 );
                               }
                               return const Text('');
@@ -143,14 +152,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       borderData: FlBorderData(show: false),
                       barGroups: List.generate(
-                        monthlyCount.length,
+                        allMonths.length,
                         (index) => BarChartGroupData(
                           x: index,
                           barRods: [
                             BarChartRodData(
-                              toY: monthlyCount.values.elementAt(index).toDouble(),
+                              toY: monthlyCount[allMonths[index]]!.toDouble(),
                               color: const Color(0xFF1E3A8A), // Biru Tua
-                              width: 22,
+                              width: 14, // Diperkecil agar 12 bulan muat di layar
                               borderRadius: const BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6)),
                             )
                           ],
